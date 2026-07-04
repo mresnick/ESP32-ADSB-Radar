@@ -22,10 +22,6 @@ Must be run from a native shell (PowerShell/cmd on Windows) - `idf.py`
 refuses to fully cooperate under Git Bash/MSYS ("MSys/Mingw is no longer
 supported").
 
-After a full build, delete the `build/` directory rather than leaving it
-around - it's ~140MB of generated artifacts, not something to keep checked
-out between sessions.
-
 ## Native (host-side) unit tests (no hardware, no ESP-IDF needed)
 
 Two modules are plain C with no (or stubbed) ESP-IDF dependencies, so
