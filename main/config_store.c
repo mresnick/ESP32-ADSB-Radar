@@ -43,6 +43,7 @@ esp_err_t config_store_load(radar_config_t *out)
     char range_str[32] = {0};
     char max_aircraft_str[8] = {0};
     char refresh_str[16] = {0};
+    char label_mode_str[4] = {0};
 
     esp_err_t e_ssid = get_str(h, "wifi_ssid", out->wifi_ssid, sizeof(out->wifi_ssid));
     esp_err_t e_pass = get_str(h, "wifi_pass", out->wifi_pass, sizeof(out->wifi_pass));
@@ -59,15 +60,16 @@ esp_err_t config_store_load(radar_config_t *out)
     get_str(h, "cfg_password", out->live_cfg_password, sizeof(out->live_cfg_password));
     esp_err_t e_max_aircraft = get_str(h, "max_aircraft", max_aircraft_str, sizeof(max_aircraft_str));
     esp_err_t e_refresh = get_str(h, "refresh_sec", refresh_str, sizeof(refresh_str));
+    esp_err_t e_label_mode = get_str(h, "label_mode", label_mode_str, sizeof(label_mode_str));
     nvs_close(h);
 
     ESP_LOGI(TAG, "load: ssid=%s(%s) pass=%s host=%s(%s) port=%s(%s) lat=%s(%s) lon=%s(%s) range=%s(%s) "
-                  "max_aircraft=%s(%s) refresh=%s(%s) live_cfg_user=%s live_cfg_password_present=%d",
+                  "max_aircraft=%s(%s) refresh=%s(%s) label_mode=%s(%s) live_cfg_user=%s live_cfg_password_present=%d",
              out->wifi_ssid, esp_err_to_name(e_ssid), esp_err_to_name(e_pass),
              out->sky_host, esp_err_to_name(e_host), port_str, esp_err_to_name(e_port),
              lat_str, esp_err_to_name(e_lat), lon_str, esp_err_to_name(e_lon),
              range_str, esp_err_to_name(e_range), max_aircraft_str, esp_err_to_name(e_max_aircraft),
-             refresh_str, esp_err_to_name(e_refresh),
+             refresh_str, esp_err_to_name(e_refresh), label_mode_str, esp_err_to_name(e_label_mode),
              out->live_cfg_username, out->live_cfg_password[0] != '\0');
 
     if (e_ssid || e_pass || e_host || e_port || e_lat || e_lon || e_range) {
@@ -98,6 +100,10 @@ esp_err_t config_store_load(radar_config_t *out)
         ESP_LOGW(TAG, "invalid refresh_sec '%s' - defaulting", refresh_str);
         out->refresh_interval_sec = 0;
     }
+    if (e_label_mode == ESP_OK && !config_store_parse_label_mode(label_mode_str, &out->label_mode)) {
+        ESP_LOGW(TAG, "invalid label_mode '%s' - defaulting", label_mode_str);
+        out->label_mode = RADAR_LABEL_CALLSIGN;
+    }
 
     return ESP_OK;
 }
@@ -111,17 +117,19 @@ esp_err_t config_store_save(const radar_config_t *cfg)
     }
 
     char port_str[6], lat_str[32], lon_str[32], range_str[16], max_aircraft_str[8], refresh_str[16];
+    char label_mode_str[4];
     snprintf(port_str, sizeof(port_str), "%u", cfg->sky_port);
     snprintf(lat_str, sizeof(lat_str), "%f", cfg->home_lat);
     snprintf(lon_str, sizeof(lon_str), "%f", cfg->home_lon);
     snprintf(range_str, sizeof(range_str), "%.1f", cfg->range_nm);
     snprintf(max_aircraft_str, sizeof(max_aircraft_str), "%d", cfg->max_aircraft);
     snprintf(refresh_str, sizeof(refresh_str), "%.1f", cfg->refresh_interval_sec);
+    snprintf(label_mode_str, sizeof(label_mode_str), "%d", (int)cfg->label_mode);
 
     ESP_LOGI(TAG, "save: ssid='%s' host='%s' port='%s' lat='%s' lon='%s' range='%s' max_aircraft='%s' "
-                  "refresh='%s' live_cfg_user='%s' live_cfg_password_present=%d",
+                  "refresh='%s' label_mode='%s' live_cfg_user='%s' live_cfg_password_present=%d",
              cfg->wifi_ssid, cfg->sky_host, port_str, lat_str, lon_str, range_str, max_aircraft_str,
-             refresh_str, cfg->live_cfg_username, cfg->live_cfg_password[0] != '\0');
+             refresh_str, label_mode_str, cfg->live_cfg_username, cfg->live_cfg_password[0] != '\0');
 
     esp_err_t e_ssid = nvs_set_str(h, "wifi_ssid", cfg->wifi_ssid);
     esp_err_t e_pass = nvs_set_str(h, "wifi_pass", cfg->wifi_pass);
@@ -132,18 +140,20 @@ esp_err_t config_store_save(const radar_config_t *cfg)
     esp_err_t e_range = nvs_set_str(h, "range_nm", range_str);
     esp_err_t e_max_aircraft = nvs_set_str(h, "max_aircraft", max_aircraft_str);
     esp_err_t e_refresh = nvs_set_str(h, "refresh_sec", refresh_str);
+    esp_err_t e_label_mode = nvs_set_str(h, "label_mode", label_mode_str);
     esp_err_t e_username = nvs_set_str(h, "cfg_username", cfg->live_cfg_username);
     esp_err_t e_password = nvs_set_str(h, "cfg_password", cfg->live_cfg_password);
     esp_err_t e_flag = nvs_set_str(h, "configured", "1");
 
     ESP_LOGI(TAG, "save results: ssid=%s pass=%s host=%s port=%s lat=%s lon=%s range=%s max_aircraft=%s "
-                  "refresh=%s user=%s password=%s flag=%s",
+                  "refresh=%s label_mode=%s user=%s password=%s flag=%s",
              esp_err_to_name(e_ssid), esp_err_to_name(e_pass), esp_err_to_name(e_host), esp_err_to_name(e_port),
              esp_err_to_name(e_lat), esp_err_to_name(e_lon), esp_err_to_name(e_range), esp_err_to_name(e_max_aircraft),
-             esp_err_to_name(e_refresh), esp_err_to_name(e_username), esp_err_to_name(e_password), esp_err_to_name(e_flag));
+             esp_err_to_name(e_refresh), esp_err_to_name(e_label_mode), esp_err_to_name(e_username),
+             esp_err_to_name(e_password), esp_err_to_name(e_flag));
 
     esp_err_t any_err = e_ssid || e_pass || e_host || e_port || e_lat || e_lon || e_range || e_max_aircraft
-                                || e_refresh || e_username || e_password || e_flag
+                                || e_refresh || e_label_mode || e_username || e_password || e_flag
                              ? ESP_FAIL : ESP_OK;
 
     if (any_err == ESP_OK) {
@@ -260,5 +270,16 @@ bool config_store_parse_refresh_interval_sec(const char *str, double *out)
         return false;
     }
     *out = v;
+    return true;
+}
+
+bool config_store_parse_label_mode(const char *str, radar_label_mode_t *out)
+{
+    char *endptr;
+    long v = strtol(str, &endptr, 10);
+    if (*endptr != '\0' || v < RADAR_LABEL_CALLSIGN || v > RADAR_LABEL_TAIL_NUMBER) {
+        return false;
+    }
+    *out = (radar_label_mode_t)v;
     return true;
 }

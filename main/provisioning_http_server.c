@@ -38,6 +38,11 @@ static const char FORM_HTML[] =
     "Radar Range (nm):<br><input name=\"range\" type=\"number\" step=\"any\" value=\"20\" required><br>"
     "Max Aircraft Displayed:<br><input name=\"max_aircraft\" type=\"number\" min=\"1\" max=\"8\" value=\"8\" required><br>"
     "Refresh Interval (seconds):<br><input name=\"refresh\" type=\"number\" step=\"any\" min=\"1\" value=\"3\" required><br>"
+    "Aircraft Label:<br><select name=\"label_mode\">"
+    "<option value=\"0\" selected>Callsign</option>"
+    "<option value=\"1\">Aircraft Type</option>"
+    "<option value=\"2\">Tail Number</option>"
+    "</select><br>"
     "Live Config Username:<br><input name=\"live_user\" maxlength=\"32\" value=\"adsbradar\" required><br>"
     "Live Config Password:<br><input name=\"live_pass\" type=\"password\" maxlength=\"64\" value=\"adsbradar\" required><br><br>"
     "<input type=\"submit\" value=\"Save and Reboot\">"
@@ -70,7 +75,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
 
     radar_config_t cfg = {0};
     char port_str[8] = {0}, lat_str[32] = {0}, lon_str[32] = {0}, range_str[32] = {0};
-    char max_aircraft_str[8] = {0}, refresh_str[16] = {0};
+    char max_aircraft_str[8] = {0}, refresh_str[16] = {0}, label_mode_str[4] = {0};
 
     bool ok = form_urlencoded_get(body, total, "ssid", cfg.wifi_ssid, sizeof(cfg.wifi_ssid));
     form_urlencoded_get(body, total, "pass", cfg.wifi_pass, sizeof(cfg.wifi_pass));
@@ -81,6 +86,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     ok = ok && form_urlencoded_get(body, total, "range", range_str, sizeof(range_str));
     ok = ok && form_urlencoded_get(body, total, "max_aircraft", max_aircraft_str, sizeof(max_aircraft_str));
     ok = ok && form_urlencoded_get(body, total, "refresh", refresh_str, sizeof(refresh_str));
+    ok = ok && form_urlencoded_get(body, total, "label_mode", label_mode_str, sizeof(label_mode_str));
     ok = ok && form_urlencoded_get(body, total, "live_user", cfg.live_cfg_username, sizeof(cfg.live_cfg_username));
     ok = ok && form_urlencoded_get(body, total, "live_pass", cfg.live_cfg_password, sizeof(cfg.live_cfg_password));
 
@@ -105,6 +111,9 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     }
     if (!config_store_parse_refresh_interval_sec(refresh_str, &cfg.refresh_interval_sec)) {
         return http_send_error(req, "Invalid refresh interval");
+    }
+    if (!config_store_parse_label_mode(label_mode_str, &cfg.label_mode)) {
+        return http_send_error(req, "Invalid aircraft label");
     }
 
     esp_err_t err = config_store_save(&cfg);

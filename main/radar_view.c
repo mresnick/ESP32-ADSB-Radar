@@ -396,23 +396,22 @@ static void draw_aircraft_icon(int x, int y, double heading_deg, aircraft_shape_
     draw_plane_icon(x, y, heading_deg, scale, color);
 }
 
-// Just the flight number (broadcast callsign, or ICAO hex as a fallback -
-// see aircraft_model.c) - no altitude text and no separate ICAO-hex line.
-// Altitude is conveyed by the aircraft icon's color (altitude_color())
-// instead of a numeric line, and the hex address was redundant clutter
-// (two identifiers for the same aircraft) whenever a real callsign was
-// already available.
+// Just t->label (see radar_view.h for what it can hold and its fallback
+// chain) - no altitude text and no separate ICAO-hex line. Altitude is
+// conveyed by the aircraft icon's color (altitude_color()) instead of a
+// numeric line, and a redundant second identifier line was clutter once
+// the aircraft already had a real label to show.
 static void draw_target_label(int x, int y, const radar_target_t *t)
 {
-    char callsign_upper[sizeof(t->callsign)];
+    char label_upper[sizeof(t->label)];
     size_t i = 0;
-    for (; i < sizeof(callsign_upper) - 1 && t->callsign[i] != '\0'; i++) {
-        callsign_upper[i] = (char)toupper((unsigned char)t->callsign[i]);
+    for (; i < sizeof(label_upper) - 1 && t->label[i] != '\0'; i++) {
+        label_upper[i] = (char)toupper((unsigned char)t->label[i]);
     }
-    callsign_upper[i] = '\0';
+    label_upper[i] = '\0';
 
     int glyph_h = (int)lround(FontSans.Height * TARGET_LABEL_SCALE);
-    int block_w = measure_string_width(callsign_upper, TARGET_LABEL_SCALE, TARGET_LABEL_SPACING);
+    int block_w = measure_string_width(label_upper, TARGET_LABEL_SCALE, TARGET_LABEL_SPACING);
     int pad = 1;
 
     // Paint_DrawRectangle (unlike Paint_SetPixel) rejects the whole
@@ -447,7 +446,7 @@ static void draw_target_label(int x, int y, const radar_target_t *t)
                          (UWORD)(lx + block_w + pad), (UWORD)(ly + glyph_h + pad),
                          BLACK, DOT_PIXEL_1X1, DRAW_FILL_FULL);
 
-    draw_string_scaled(lx, ly, callsign_upper, WHITE, BLACK, TARGET_LABEL_SCALE, TARGET_LABEL_SPACING);
+    draw_string_scaled(lx, ly, label_upper, WHITE, BLACK, TARGET_LABEL_SCALE, TARGET_LABEL_SPACING);
 }
 
 // Corners of the round 240x240 canvas fall outside the inscribed range-ring

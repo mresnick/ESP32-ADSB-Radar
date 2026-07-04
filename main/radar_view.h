@@ -22,7 +22,14 @@ typedef struct {
     double dist_nm;
     double bearing_deg;
     double heading_deg;
-    char callsign[10];      // broadcast callsign (or ICAO hex, if none broadcast)
+    // On-screen label text - callsign, ICAO aircraft type, or registration/
+    // tail number, depending on radar_config_t.label_mode (see
+    // config_store.h and app_main.c, which resolves the mode into this
+    // plain string so this module stays unaware of config entirely). Always
+    // non-empty: app_main.c falls back to callsign (which itself falls back
+    // to ICAO hex - see aircraft_model.c) if the chosen field isn't
+    // broadcast/available for a given aircraft.
+    char label[10];
     int altitude_ft;
     bool has_altitude;
     aircraft_shape_t shape;
@@ -45,8 +52,8 @@ void radar_view_init(void);
 void radar_view_draw_status(const char *line1, const char *line2);
 
 // Draws range rings, N/E/S/W labels, crosshairs, a home marker, static
-// markers (e.g. airports), and an altitude-colored aircraft icon +
-// callsign label per aircraft target. Markers are drawn before targets, so
+// markers (e.g. airports), and an altitude-colored aircraft icon + label
+// per aircraft target. Markers are drawn before targets, so
 // a target's opaque label can legibly overlap a marker but not vice versa.
 // `hidden_count` is how many additional in-range airborne aircraft exist
 // beyond the ones passed in `targets` (i.e. didn't make the top-`count`

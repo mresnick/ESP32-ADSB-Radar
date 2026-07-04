@@ -194,6 +194,34 @@ static aircraft_shape_t classify_shape(const char *category)
     return AIRCRAFT_SHAPE_UNKNOWN;
 }
 
+// Picks the source string for a target's on-screen label per
+// radar_config_t.label_mode. Always returns a non-empty string: `ac->flight`
+// is guaranteed non-empty by aircraft_model.c (it falls back to ICAO hex
+// there if no callsign was broadcast), and this falls back to it in turn
+// whenever the requested field isn't populated for this particular
+// aircraft - aircraft_type/tail_number come from SkyAware's own aircraft
+// database lookup, not the aircraft's broadcast, so either can be blank
+// even when callsign isn't.
+static const char *resolve_label(const aircraft_t *ac, radar_label_mode_t mode)
+{
+    switch (mode) {
+        case RADAR_LABEL_AIRCRAFT_TYPE:
+            if (ac->aircraft_type[0] != '\0') {
+                return ac->aircraft_type;
+            }
+            break;
+        case RADAR_LABEL_TAIL_NUMBER:
+            if (ac->tail_number[0] != '\0') {
+                return ac->tail_number;
+            }
+            break;
+        case RADAR_LABEL_CALLSIGN:
+        default:
+            break;
+    }
+    return ac->flight;
+}
+
 // Thin adapter: skyaware_client_fetch calls this once per HTTP receive
 // chunk; it just forwards into the aircraft scanner, which is what
 // actually knows how to resume parsing across chunk boundaries.
@@ -228,8 +256,8 @@ static int build_airport_markers(const radar_config_t *cfg, radar_marker_t *out)
 // each iteration below refreshes its own local copy from
 // live_config_http_server.c rather than reading a single boot-time
 // snapshot - that's what lets the live-config server's edits (SkyAware
-// host/port, home lat/lon, radar range, max aircraft, refresh interval)
-// take effect without a reboot.
+// host/port, home lat/lon, radar range, max aircraft, refresh interval,
+// aircraft label mode) take effect without a reboot.
 static void run_radar_loop(radar_config_t cfg)
 {
     // static: the scanner (~2KB) and targets array would otherwise sit on
@@ -270,8 +298,8 @@ static void run_radar_loop(radar_config_t cfg)
                 targets[i].altitude_ft = ac->altitude_ft;
                 targets[i].has_altitude = ac->has_altitude;
                 targets[i].shape = classify_shape(ac->category);
-                strncpy(targets[i].callsign, ac->flight, sizeof(targets[i].callsign) - 1);
-                targets[i].callsign[sizeof(targets[i].callsign) - 1] = '\0';
+                strncpy(targets[i].label, resolve_label(ac, cfg.label_mode), sizeof(targets[i].label) - 1);
+                targets[i].label[sizeof(targets[i].label) - 1] = '\0';
             }
 
             // Only the final, already-selected nearest set needs z-order -

@@ -56,7 +56,9 @@ static bool aircraft_eq(const aircraft_t *a, const aircraft_t *b)
            a->has_position == b->has_position &&
            a->has_altitude == b->has_altitude &&
            a->on_ground == b->on_ground &&
-           strcmp(a->category, b->category) == 0;
+           strcmp(a->category, b->category) == 0 &&
+           strcmp(a->aircraft_type, b->aircraft_type) == 0 &&
+           strcmp(a->tail_number, b->tail_number) == 0;
 }
 
 // Feeds `data[0..len)` to `sc` in chunks of `chunk_size` bytes (last chunk
@@ -83,12 +85,15 @@ static void feed_in_chunks(aircraft_model_scanner_t *sc, const char *data, size_
 // SCAN_STATE_KEY_OR_END correctly continues past the array to the true
 // top-level '}'), and an ADS-B "category" field present on one aircraft but
 // absent on the other two (tests that a missing category is left blank
-// rather than carrying over stale data from a previous object).
+// rather than carrying over stale data from a previous object), and a "t"
+// (ICAO aircraft type) plus "r" (registration/tail number) field on the
+// same aircraft as "category", absent on the other two (tests both real
+// parsing and the "not every aircraft has this" blank-fallback case).
 static const char *kDoc =
     "{\"now\":1234567890.5, \"messages\":99999, \"aircraft\": [\n"
     "  {\"hex\":\"a4bcba\",\"flight\":\"UA\\u0041B  \",\"lat\":40.712,\"lon\":-74.006,"
     "\"track\":2.705e2,\"alt_baro\":35000,\"squawk\":\"1200\",\"extra_num\":-1.5e-3,"
-    "\"category\":\"A7\","
+    "\"category\":\"A7\",\"t\":\"B738\",\"r\":\"N12345\","
     "\"nested\":{\"a\":1,\"b\":[1,2,3]},\"arr\":[{\"x\":true},{\"y\":false},null]},\n"
     "  {\"hex\":\"b0a1c2\",\"alt_baro\":\"ground\",\"messages\":42,\"seen\":0.5},\n"
     "  {\"hex\":\"c3d4e5\",\"flight\":\"SWA202  \",\"lat\":40.70,\"lon\":-74.01,\"track\":0}\n"
@@ -108,6 +113,8 @@ static void expected_aircraft(aircraft_t *out, int n)
     out[0].has_altitude = true;
     out[0].on_ground = false;
     strcpy(out[0].category, "A7");
+    strcpy(out[0].aircraft_type, "B738");
+    strcpy(out[0].tail_number, "N12345");
 
     strcpy(out[1].hex, "b0a1c2");
     strcpy(out[1].flight, "b0a1c2"); // no "flight" key - falls back to hex

@@ -88,6 +88,12 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
     if (status != NULL) {
         snprintf(status_html, sizeof(status_html), "<p><b>%s</b></p>", status);
     }
+    // Marks whichever <option> matches the currently-configured label_mode
+    // as selected, so reloading/re-saving the form shows the real current
+    // choice instead of always resetting to the first option.
+    const char *sel_callsign = (cfg->label_mode == RADAR_LABEL_CALLSIGN) ? " selected" : "";
+    const char *sel_type = (cfg->label_mode == RADAR_LABEL_AIRCRAFT_TYPE) ? " selected" : "";
+    const char *sel_tail = (cfg->label_mode == RADAR_LABEL_TAIL_NUMBER) ? " selected" : "";
     // Sized with margin over the worst case: ~1KB of literal markup
     // (including the viewport meta/style block below) plus a full 64-char
     // sky_host, status_html, and the other substituted fields - see
@@ -120,12 +126,17 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
         "Home Longitude:<br><input name=\"lon\" type=\"number\" step=\"any\" value=\"%f\" required><br>"
         "Radar Range (nm):<br><input name=\"range\" type=\"number\" step=\"any\" value=\"%.1f\" required><br>"
         "Max Aircraft Displayed:<br><input name=\"max_aircraft\" type=\"number\" min=\"1\" max=\"%d\" value=\"%d\" required><br>"
-        "Refresh Interval (seconds):<br><input name=\"refresh\" type=\"number\" step=\"any\" min=\"%.0f\" value=\"%.1f\" required><br><br>"
+        "Refresh Interval (seconds):<br><input name=\"refresh\" type=\"number\" step=\"any\" min=\"%.0f\" value=\"%.1f\" required><br>"
+        "Aircraft Label:<br><select name=\"label_mode\">"
+        "<option value=\"0\"%s>Callsign</option>"
+        "<option value=\"1\"%s>Aircraft Type</option>"
+        "<option value=\"2\"%s>Tail Number</option>"
+        "</select><br><br>"
         "<input type=\"submit\" value=\"Save\">"
         "</form></body></html>",
         status_html, cfg->sky_host, cfg->sky_port,
         cfg->home_lat, cfg->home_lon, cfg->range_nm, MAX_AIRCRAFT_CAP, cfg->max_aircraft,
-        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec);
+        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec, sel_callsign, sel_type, sel_tail);
 }
 
 static esp_err_t form_get_handler(httpd_req_t *req)
@@ -161,7 +172,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     }
 
     char host[65] = {0}, port_str[8] = {0}, lat_str[32] = {0}, lon_str[32] = {0}, range_str[32] = {0};
-    char max_aircraft_str[8] = {0}, refresh_str[16] = {0};
+    char max_aircraft_str[8] = {0}, refresh_str[16] = {0}, label_mode_str[4] = {0};
     bool ok = form_urlencoded_get(body, total, "host", host, sizeof(host));
     ok = ok && form_urlencoded_get(body, total, "port", port_str, sizeof(port_str));
     ok = ok && form_urlencoded_get(body, total, "lat", lat_str, sizeof(lat_str));
@@ -169,6 +180,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     ok = ok && form_urlencoded_get(body, total, "range", range_str, sizeof(range_str));
     ok = ok && form_urlencoded_get(body, total, "max_aircraft", max_aircraft_str, sizeof(max_aircraft_str));
     ok = ok && form_urlencoded_get(body, total, "refresh", refresh_str, sizeof(refresh_str));
+    ok = ok && form_urlencoded_get(body, total, "label_mode", label_mode_str, sizeof(label_mode_str));
     if (!ok || strlen(host) == 0) {
         return http_send_error(req, "Missing required field");
     }
@@ -176,6 +188,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     uint16_t port;
     double lat, lon, range, refresh;
     int max_aircraft;
+    radar_label_mode_t label_mode;
 
     if (!config_store_parse_port(port_str, &port)) {
         return http_send_error(req, "Invalid SkyAware port");
@@ -195,6 +208,9 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     if (!config_store_parse_refresh_interval_sec(refresh_str, &refresh)) {
         return http_send_error(req, "Invalid refresh interval");
     }
+    if (!config_store_parse_label_mode(label_mode_str, &label_mode)) {
+        return http_send_error(req, "Invalid aircraft label");
+    }
 
     xSemaphoreTake(g_lock, portMAX_DELAY);
     strncpy(g_cfg.sky_host, host, sizeof(g_cfg.sky_host) - 1);
@@ -204,6 +220,7 @@ static esp_err_t save_post_handler(httpd_req_t *req)
     g_cfg.home_lon = lon;
     g_cfg.range_nm = range;
     g_cfg.max_aircraft = max_aircraft;
+    g_cfg.label_mode = label_mode;
     g_cfg.refresh_interval_sec = refresh;
     esp_err_t save_err = config_store_save(&g_cfg);
     xSemaphoreGive(g_lock);

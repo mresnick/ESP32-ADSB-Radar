@@ -30,6 +30,18 @@
 #define REFRESH_INTERVAL_MIN_SEC 1.0
 #define REFRESH_INTERVAL_MAX_SEC 60.0
 
+// Which per-aircraft string radar_view.c's target label shows - see
+// radar_config_t.label_mode below. Unlike max_aircraft/refresh_interval_sec,
+// 0 (RADAR_LABEL_CALLSIGN) is itself the correct default, so a config saved
+// before this field existed - where config_store_load's memset already
+// leaves it 0 - needs no separate config_store_ensure_* backfill/persist
+// step the way those two do.
+typedef enum {
+    RADAR_LABEL_CALLSIGN = 0,
+    RADAR_LABEL_AIRCRAFT_TYPE = 1,
+    RADAR_LABEL_TAIL_NUMBER = 2,
+} radar_label_mode_t;
+
 typedef struct {
     char wifi_ssid[33];
     char wifi_pass[65];
@@ -46,6 +58,9 @@ typedef struct {
     // REFRESH_INTERVAL_MAX_SEC - see config_store_ensure_refresh_interval
     // for why a missing/invalid value doesn't fail config_store_load.
     double refresh_interval_sec;
+    // Which field app_main.c copies into each radar_target_t's on-screen
+    // label - see radar_label_mode_t above.
+    radar_label_mode_t label_mode;
     // HTTP Basic Auth credentials gating main/live_config_http_server.c -
     // set via provisioning_http_server.c's form (defaulting to
     // LIVE_CFG_DEFAULT_USERNAME/PASSWORD there), editable only through
@@ -97,5 +112,6 @@ bool config_store_parse_lon(const char *str, double *out);
 bool config_store_parse_range_nm(const char *str, double *out);
 bool config_store_parse_max_aircraft(const char *str, int *out);
 bool config_store_parse_refresh_interval_sec(const char *str, double *out);
+bool config_store_parse_label_mode(const char *str, radar_label_mode_t *out);
 
 #endif

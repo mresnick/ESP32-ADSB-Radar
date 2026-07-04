@@ -343,6 +343,16 @@ static step_result_t parse_aircraft_object(scanner_t *s, aircraft_t *a)
                 if (r != STEP_OK) {
                     return r;
                 }
+            } else if (strcmp(key, "t") == 0) {
+                r = extract_string(s, a->aircraft_type, sizeof(a->aircraft_type));
+                if (r != STEP_OK) {
+                    return r;
+                }
+            } else if (strcmp(key, "r") == 0) {
+                r = extract_string(s, a->tail_number, sizeof(a->tail_number));
+                if (r != STEP_OK) {
+                    return r;
+                }
             } else if (strcmp(key, "flight") == 0) {
                 char tmp[16];
                 r = extract_string(s, tmp, sizeof(tmp));

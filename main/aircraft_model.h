@@ -19,6 +19,14 @@ typedef struct {
     // omit it). This module stays ignorant of what the codes mean; see
     // classify_shape() in app_main.c for the icon-shape mapping.
     char category[3];
+    // ICAO type designator (e.g. "B738") and registration/tail number (e.g.
+    // "N12345") - both come from SkyAware/dump1090's aircraft type database
+    // lookup, not the aircraft's own broadcast, so either can be empty even
+    // for an otherwise fully-populated aircraft (no local database, or the
+    // hex address just isn't in it). Used as alternate label text - see
+    // radar_config_t.label_mode in config_store.h and app_main.c.
+    char aircraft_type[9];
+    char tail_number[10];
 } aircraft_t;
 
 // A fully-populated dump1090/readsb aircraft object runs roughly 400-700 bytes
