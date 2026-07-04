@@ -115,6 +115,11 @@ void provisioning_http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 8;
+    // Default 1024 is too small for modern browsers' client-hint headers
+    // (sec-ch-ua, sec-fetch-*, a long User-Agent, etc.) - undersizing this
+    // gets every request rejected with "431 Request Header Fields Too Large"
+    // before it ever reaches a handler.
+    config.max_req_hdr_len = 4096;
 
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK) {

@@ -226,6 +226,9 @@ void live_config_http_server_start(const radar_config_t *initial_cfg)
     // hardware rather than assuming a clean build proves it's still enough -
     // this class of bug is invisible at compile time.
     config.stack_size = 8192;
+    // Same 431 "Header Fields Too Large" issue as provisioning_http_server.c
+    // - default 1024 is too small for modern browsers' client-hint headers.
+    config.max_req_hdr_len = 4096;
 
     httpd_handle_t server = NULL;
     if (httpd_start(&server, &config) != ESP_OK) {
