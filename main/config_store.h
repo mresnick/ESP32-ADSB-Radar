@@ -30,17 +30,16 @@
 #define REFRESH_INTERVAL_MIN_SEC 1.0
 #define REFRESH_INTERVAL_MAX_SEC 60.0
 
-// Which per-aircraft string radar_view.c's target label shows - see
+// Whether radar_view.c draws a callsign under each aircraft target - see
 // radar_config_t.label_mode below. Unlike max_aircraft/refresh_interval_sec,
 // 0 (RADAR_LABEL_CALLSIGN) is itself the correct default, so a config saved
 // before this field existed - where config_store_load's memset already
 // leaves it 0 - needs no separate config_store_ensure_* backfill/persist
-// step the way those two do.
+// step the way those two do. Aircraft type/registration were considered as
+// further options here and deferred - see TASKS.md item 7 for why.
 typedef enum {
     RADAR_LABEL_CALLSIGN = 0,
-    RADAR_LABEL_AIRCRAFT_TYPE = 1,
-    RADAR_LABEL_TAIL_NUMBER = 2,
-    RADAR_LABEL_NONE = 3,
+    RADAR_LABEL_NONE = 1,
 } radar_label_mode_t;
 
 typedef struct {

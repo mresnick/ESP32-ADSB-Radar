@@ -22,15 +22,12 @@ typedef struct {
     double dist_nm;
     double bearing_deg;
     double heading_deg;
-    // On-screen label text - callsign, ICAO aircraft type, registration/
-    // tail number, or empty (no label at all), depending on
-    // radar_config_t.label_mode (see config_store.h and app_main.c, which
-    // resolves the mode into this plain string so this module stays
-    // unaware of config entirely). Empty only means the user chose
-    // RADAR_LABEL_NONE - every other mode falls back to callsign (which
-    // itself falls back to ICAO hex - see aircraft_model.c) if the chosen
-    // field isn't broadcast/available for a given aircraft, so drawing code
-    // can treat "empty" as "draw nothing" unambiguously.
+    // On-screen label text - the aircraft's callsign, or empty (no label at
+    // all) if radar_config_t.label_mode is RADAR_LABEL_NONE (see
+    // config_store.h and app_main.c, which resolves the mode into this
+    // plain string so this module stays unaware of config entirely).
+    // Callsign itself already falls back to ICAO hex if none was broadcast
+    // - see aircraft_model.c - so empty unambiguously means RADAR_LABEL_NONE.
     char label[10];
     int altitude_ft;
     bool has_altitude;

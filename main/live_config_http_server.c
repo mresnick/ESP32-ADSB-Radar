@@ -92,8 +92,6 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
     // as selected, so reloading/re-saving the form shows the real current
     // choice instead of always resetting to the first option.
     const char *sel_callsign = (cfg->label_mode == RADAR_LABEL_CALLSIGN) ? " selected" : "";
-    const char *sel_type = (cfg->label_mode == RADAR_LABEL_AIRCRAFT_TYPE) ? " selected" : "";
-    const char *sel_tail = (cfg->label_mode == RADAR_LABEL_TAIL_NUMBER) ? " selected" : "";
     const char *sel_none = (cfg->label_mode == RADAR_LABEL_NONE) ? " selected" : "";
     // Sized with margin over the worst case: ~1KB of literal markup
     // (including the viewport meta/style block below) plus a full 64-char
@@ -135,15 +133,13 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
         "Refresh Interval (seconds):<br><input name=\"refresh\" type=\"number\" step=\"any\" min=\"%.0f\" value=\"%.1f\" required><br>"
         "Aircraft Label:<br><select name=\"label_mode\">"
         "<option value=\"0\"%s>Callsign</option>"
-        "<option value=\"1\"%s>Aircraft Type</option>"
-        "<option value=\"2\"%s>Tail Number</option>"
-        "<option value=\"3\"%s>None</option>"
+        "<option value=\"1\"%s>None</option>"
         "</select><br><br>"
         "<input type=\"submit\" value=\"Save\">"
         "</form></body></html>",
         status_html, cfg->sky_host, cfg->sky_port,
         cfg->home_lat, cfg->home_lon, cfg->range_nm, MAX_AIRCRAFT_CAP, cfg->max_aircraft,
-        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec, sel_callsign, sel_type, sel_tail, sel_none);
+        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec, sel_callsign, sel_none);
 }
 
 static esp_err_t form_get_handler(httpd_req_t *req)

@@ -80,3 +80,23 @@ generation/NVS storage, real complexity - and even then every new
 browser/device hits a "connection not private" warning to click through.
 Not worth it for one convenience button when manual lat/lon entry already
 works.
+
+### 7. Aircraft type / tail number labels - investigated, deferred
+A third and fourth `label_mode` option (alongside callsign/none) showing
+ICAO aircraft type or registration was tried. SkyAware/dump1090-fa's live
+`aircraft.json` feed has no type/registration fields at all (confirmed
+against FlightAware's own schema docs and a real instance) - but its web UI
+does show both, sourced from a separate static database the same server
+hosts at `db/<hex-prefix>.json`: a variable-depth (1-6 level) hex-prefix
+trie, one HTTP fetch per level, where individual shard files run 20-35KB
+(confirmed against a real device) - comparable in size to a whole
+~100-aircraft `aircraft.json` response. Resolving up to `MAX_AIRCRAFT_CAP`
+(8) displayed aircraft this way, each potentially needing several such
+fetches, doesn't fit inside a 1-second (or even several-second) refresh
+cycle on this hardware, especially over WiFi - CLAUDE.md documents fetches
+this size taking 0.2-2.5s each in practice on the ESP32's own
+`aircraft.json` fetch, and every displayed aircraft could need multiple of
+these per cycle. Only workable by decoupling entirely from the render loop
+- a background task resolving one newly-seen aircraft's hex at a time into
+a small hex-to-{type,tail} cache that the render loop reads without ever
+waiting on it - not attempted here.

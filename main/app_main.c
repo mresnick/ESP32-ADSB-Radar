@@ -195,32 +195,15 @@ static aircraft_shape_t classify_shape(const char *category)
 }
 
 // Picks the source string for a target's on-screen label per
-// radar_config_t.label_mode. The only case this returns an empty string is
-// RADAR_LABEL_NONE (radar_view.c skips drawing a label entirely for an
-// empty one) - every other mode falls back to `ac->flight`, which is itself
-// guaranteed non-empty by aircraft_model.c (it falls back to ICAO hex there
-// if no callsign was broadcast), whenever the requested field isn't
-// populated for this particular aircraft - aircraft_type/tail_number come
-// from SkyAware's own aircraft database lookup, not the aircraft's
-// broadcast, so either can be blank even when callsign isn't.
+// radar_config_t.label_mode. RADAR_LABEL_NONE is the only case this returns
+// an empty string for (radar_view.c skips drawing a label entirely for an
+// empty one) - RADAR_LABEL_CALLSIGN returns `ac->flight`, itself already
+// guaranteed non-empty by aircraft_model.c (falls back to ICAO hex there if
+// no callsign was broadcast).
 static const char *resolve_label(const aircraft_t *ac, radar_label_mode_t mode)
 {
-    switch (mode) {
-        case RADAR_LABEL_NONE:
-            return "";
-        case RADAR_LABEL_AIRCRAFT_TYPE:
-            if (ac->aircraft_type[0] != '\0') {
-                return ac->aircraft_type;
-            }
-            break;
-        case RADAR_LABEL_TAIL_NUMBER:
-            if (ac->tail_number[0] != '\0') {
-                return ac->tail_number;
-            }
-            break;
-        case RADAR_LABEL_CALLSIGN:
-        default:
-            break;
+    if (mode == RADAR_LABEL_NONE) {
+        return "";
     }
     return ac->flight;
 }
