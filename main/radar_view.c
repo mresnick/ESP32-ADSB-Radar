@@ -50,19 +50,18 @@
 // it) is the one that grows this.
 #define PLANE_MAX_REACH_PX ((int)(PLANE_NOSE_LEN * PLANE_LARGE_SCALE + 0.5))
 
-// Rotorcraft icon: a rotor disc circle with an X of blades across it
-// (immediately distinct from any fixed-wing silhouette, unlike just
-// resizing the plane icon) plus a short tail boom ending in a perpendicular
-// tail-rotor tick, so heading is still legible even though dump1090 reports
-// no rotor phase to actually sweep. Deliberately not derived from the
-// PLANE_* constants above - a helicopter's silhouette has nothing in
-// common with a fixed-wing one, so scaling one from the other would be
-// coincidental, not meaningful.
-#define HELI_BODY_RADIUS_PX 3
-#define HELI_ROTOR_RADIUS_PX 8
-#define HELI_TAIL_LEN 9
-#define HELI_TAIL_ROTOR_HALF_SPAN 3
-#define HELI_MAX_REACH_PX (HELI_TAIL_LEN + HELI_TAIL_ROTOR_HALF_SPAN)
+// Rotorcraft icon: an X of rotor blades through the center plus a tail
+// boom, so heading is still legible even though dump1090 reports no rotor
+// phase to actually sweep (immediately distinct from any fixed-wing
+// silhouette, unlike just resizing the plane icon). The tail is deliberately
+// longer than the blade span - it's the main heading cue, so it needs to
+// read as a clear "pointer" rather than a stub barely past the blades.
+// Deliberately not derived from the PLANE_* constants above - a
+// helicopter's silhouette has nothing in common with a fixed-wing one, so
+// scaling one from the other would be coincidental, not meaningful.
+#define HELI_BLADE_HALF_LEN_PX 8
+#define HELI_TAIL_LEN 16
+#define HELI_MAX_REACH_PX (HELI_BLADE_HALF_LEN_PX > HELI_TAIL_LEN ? HELI_BLADE_HALF_LEN_PX : HELI_TAIL_LEN)
 
 #define AIRCRAFT_ICON_MAX_REACH_PX (PLANE_MAX_REACH_PX > HELI_MAX_REACH_PX ? PLANE_MAX_REACH_PX : HELI_MAX_REACH_PX)
 
@@ -353,35 +352,28 @@ static void draw_plane_icon(int x, int y, double heading_deg, double scale, UWOR
                     color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
 }
 
-// Rotor disc + blade X + tail boom + tail-rotor tick - see the HELI_*
-// constants above for why this doesn't share geometry with draw_plane_icon.
-// Drawn widest-first (disc, then blades, then tail boom/tick, then the
-// small filled body on top) so the body reads as sitting inside the disc
-// rather than being
-// bisected by the tail boom line passing through the center.
+// Blade X + tail boom - see the HELI_* constants above for why this
+// doesn't share geometry with draw_plane_icon. Three strokes total: no
+// disc, no body dot, no tail-rotor tick - those read as clutter/a blob at
+// this icon size rather than adding anything a plain X + tail doesn't
+// already convey.
 static void draw_helicopter_icon(int x, int y, double heading_deg, UWORD color)
 {
-    int tail_x, tail_y, tr_l_x, tr_l_y, tr_r_x, tr_r_y;
-    plane_point(x, y, heading_deg, 0, HELI_TAIL_LEN, &tail_x, &tail_y);
-    plane_point(x, y, heading_deg, -HELI_TAIL_ROTOR_HALF_SPAN, HELI_TAIL_LEN, &tr_l_x, &tr_l_y);
-    plane_point(x, y, heading_deg, HELI_TAIL_ROTOR_HALF_SPAN, HELI_TAIL_LEN, &tr_r_x, &tr_r_y);
-
-    // Rotor blades: an X inscribed in the disc, offset 45 degrees from the
-    // tail boom axis so the crossing blades read as distinct strokes rather
-    // than a plain ring (which was easy to mistake for just a circle).
-    double diag = HELI_ROTOR_RADIUS_PX * 0.70710678; // R * sin(45deg) == R * cos(45deg)
+    // Rotor blades: an X through the center, offset 45 degrees from the
+    // tail boom axis so the two crossing strokes read as distinct from it.
+    double diag = HELI_BLADE_HALF_LEN_PX * 0.70710678; // R * sin(45deg) == R * cos(45deg)
     int b1x, b1y, b2x, b2y, b3x, b3y, b4x, b4y;
     plane_point(x, y, heading_deg, -diag, -diag, &b1x, &b1y);
     plane_point(x, y, heading_deg, diag, diag, &b2x, &b2y);
     plane_point(x, y, heading_deg, diag, -diag, &b3x, &b3y);
     plane_point(x, y, heading_deg, -diag, diag, &b4x, &b4y);
 
-    Paint_DrawCircle((UWORD)x, (UWORD)y, HELI_ROTOR_RADIUS_PX, color, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
-    Paint_DrawLine((UWORD)b1x, (UWORD)b1y, (UWORD)b2x, (UWORD)b2y, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
-    Paint_DrawLine((UWORD)b3x, (UWORD)b3y, (UWORD)b4x, (UWORD)b4y, color, DOT_PIXEL_1X1, LINE_STYLE_SOLID);
+    int tail_x, tail_y;
+    plane_point(x, y, heading_deg, 0, HELI_TAIL_LEN, &tail_x, &tail_y);
+
+    Paint_DrawLine((UWORD)b1x, (UWORD)b1y, (UWORD)b2x, (UWORD)b2y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
+    Paint_DrawLine((UWORD)b3x, (UWORD)b3y, (UWORD)b4x, (UWORD)b4y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
     Paint_DrawLine((UWORD)x, (UWORD)y, (UWORD)tail_x, (UWORD)tail_y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
-    Paint_DrawLine((UWORD)tr_l_x, (UWORD)tr_l_y, (UWORD)tr_r_x, (UWORD)tr_r_y, color, DOT_PIXEL_2X2, LINE_STYLE_SOLID);
-    Paint_DrawCircle((UWORD)x, (UWORD)y, HELI_BODY_RADIUS_PX, color, DOT_PIXEL_1X1, DRAW_FILL_FULL);
 }
 
 // Dispatches to a genuinely different silhouette for rotorcraft, or the
