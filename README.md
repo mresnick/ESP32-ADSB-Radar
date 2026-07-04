@@ -2,11 +2,8 @@
 
 Polls a local SkyAware/dump1090-fa instance's `aircraft.json` feed and renders
 nearby aircraft radar-style (range rings, home marker, altitude-colored plane
-icons + callsigns, nearby major airports as small dots) on the 1.28" round
-GC9A01 LCD, over WiFi. The display driver stack (`Config/`, `LCD/`, `GUI/`,
-`Fonts/`) was copied verbatim from a sibling Waveshare demo project - except
-`Fonts/font_sans.c`, which is this project's own (see "Notes / gotchas"
-below).
+icons + callsigns, nearby major airports as small dots) on a 1.28" round
+GC9A01 LCD, over WiFi.
 
 Heavily inspired by [MatixYo/ESP32-Plane-Radar](https://github.com/MatixYo/ESP32-Plane-Radar),
 but rewritten for educational purposes, for compatibility with the larger
@@ -95,7 +92,7 @@ Requires ESP-IDF v5.x (uses `esp_http_client`, `esp_http_server`, `nvs_flash`).
 ```
 main/
   app_main.c                    boot decision tree: provisioning vs. radar mode
-  Config/, LCD/, GUI/, Fonts/    display driver stack, copied verbatim from a sibling Waveshare demo
+  Config/, LCD/, GUI/, Fonts/    vendored display driver stack (see License)
   config_store.c/.h              NVS-backed config (namespace "radarcfg")
   wifi_manager.c/.h               esp_wifi AP/STA lifecycle
   captive_dns.c/.h                minimal DNS responder for captive-portal detection
@@ -108,77 +105,6 @@ main/
   radar_view.c/.h                 GUI_Paint-based rendering
   airports.c/.h                   small static table of major-airport reference points, drawn as fixed markers
 ```
-
-## Notes / gotchas
-
-- The SkyAware response is never buffered in full — a base ESP32-WROOM has no
-  PSRAM to spare on an unbounded feed, so `aircraft_model.c` parses directly
-  out of each HTTP chunk as it arrives (`aircraft_model_scanner_feed`), one
-  aircraft object at a time. There is no whole-response size cap; the only
-  fixed buffer is `AIRCRAFT_SCAN_BUF_SIZE` (2KB, `aircraft_model.h`), sized to
-  hold one in-progress JSON record, not the whole document.
-- Every aircraft in the feed is parsed and ranked as it streams in
-  (`on_aircraft_parsed` in `app_main.c`), keeping only the top `NEAREST_K`
-  (= `MAX_DISPLAYED_AIRCRAFT`, 8) seen so far. Ranking happens during parsing
-  rather than after, so the aircraft actually shown are always the nearest
-  ones seen regardless of where they happen to fall in the server's JSON
-  array order.
-- The ranking key is distance plus a mild altitude penalty
-  (`ranking_priority` in `app_main.c`), not raw distance alone - a plane low
-  and close (e.g. on final approach) outranks a cruise-altitude plane that's
-  only marginally closer, which matters most exactly when this is most
-  useful: parked near a busy airport. True distance/bearing (never the
-  penalized value) is still what's actually drawn and what decides the
-  range cutoff. When more in-range aircraft exist than fit, a small "+N"
-  indicator is drawn so a busy feed reads as "N more are hidden" rather
-  than looking like a complete picture.
-- At most 8 in-range, airborne aircraft are drawn at once, in
-  altitude-descending (painter's-algorithm) z-order so overlapping labels
-  stay legible (`MAX_DISPLAYED_AIRCRAFT` in `app_main.c`). Nearby major
-  airports (`airports.c`) are drawn as small solid dots alongside them,
-  with no code/name label, to keep the flight path clear of static text.
-- Radar range (`range_nm`) can be changed at runtime via the live-config
-  server (see above) and takes effect on the next refresh cycle - it's
-  re-read every cycle in `app_main.c` rather than fixed at boot. The range
-  rings sit at 25/50/75/100% of whatever `range_nm` is currently configured,
-  so they stay evenly spaced regardless of range; the 50% ring is labeled
-  with its actual distance, just outside the ring (`draw_ring_label` in
-  `radar_view.c`) - the other rings aren't individually labeled since
-  they're evenly spaced by construction and one readout is enough to infer
-  the rest.
-- A fetch that fails outright, a malformed JSON document, and a connection
-  that closes before the document finishes are all treated as one uniform
-  failure: `run_radar_loop` reboots after `MAX_CONSECUTIVE_FAILURES` (5) such
-  failures in a row, rather than just the malformed-JSON case.
-- The captive DNS responder is best-effort (answers every query with
-  `192.168.4.1`); if a device doesn't auto-popup the config page, browse to
-  `http://192.168.4.1/` manually.
-- AP mode and STA mode are never run simultaneously — provisioning uses
-  AP-only, normal operation uses STA-only, switched via a full `esp_restart()`
-  after saving config rather than hot-switching WiFi modes.
-- Visual layout (colors, label placement, sweep style) is intentionally
-  minimal for v1: range rings, a center dot, and a small top-down plane
-  icon (`draw_aircraft_icon` in `radar_view.c` - fuselage, main wings, tail
-  wings, rotated to heading) + a callsign-only label per aircraft. Altitude
-  is conveyed by the icon's color (a hue gradient matching SkyAware's own
-  `ColorByAlt` scheme - see `altitude_color` in `radar_view.c`) rather than
-  a numeric label.
-- Aircraft that broadcast an ADS-B emitter category get a shape/size-
-  differentiated icon instead of the generic plane silhouette: helicopters
-  (category `A7`) draw as a rotor disc with a tail boom, large aircraft
-  (`A3`-`A5` - airliner-class and heavier) draw the same plane silhouette
-  scaled up, and light aircraft (`A1`/`A2`/`A6`) draw it scaled down
-  (`classify_shape` in `app_main.c`, `draw_aircraft_icon` in `radar_view.c`).
-  Not every aircraft broadcasts a category (older/lower ADS-B versions may
-  omit it); those fall back to the standard-size plane silhouette.
-- Text uses `Fonts/font_sans.c`, a real sans-serif bitmap
-  font (glyph data from the Public Domain
-  [dhepper/font8x8](https://github.com/dhepper/font8x8) project) rather
-  than the serif "Courier New" family the rest of `Fonts/` vendors in, and
-  is anti-aliased (supersampled against the source bitmap, see
-  `draw_char_scaled` in `radar_view.c`) rather than a raw nearest-neighbor
-  blow-up, to stay legible at the small sizes a 240x240 round display
-  forces. Refine as desired.
 
 ## License
 
