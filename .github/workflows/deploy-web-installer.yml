@@ -31,7 +31,7 @@ jobs:
       - name: Build firmware
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.1
+          esp_idf_version: v5.5.1
           target: esp32
 
       - name: Generate manifest and stage site
