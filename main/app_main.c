@@ -31,21 +31,24 @@
 
 static const char *TAG = "app_main";
 
-// The screen is 240px and each target's label is 3 lines - past a handful
-// of targets, labels bury each other regardless of z-order, so cap what's
-// drawn rather than trying to cram every in-range aircraft on screen.
-#define MAX_DISPLAYED_AIRCRAFT 8
+// How many in-range aircraft to draw is user-configurable at runtime
+// (radar_config_t.max_aircraft, 1..MAX_AIRCRAFT_CAP - see config_store.h)
+// rather than fixed, but the static arrays below still need a compile-time
+// size, so they're sized to the hard ceiling (MAX_AIRCRAFT_CAP) regardless
+// of what's actually configured.
 // The aircraft scanner emits every aircraft in the feed (no server-order
-// cutoff); this is how many of the nearest-so-far we keep ranked as they
-// stream in. No slack needed beyond MAX_DISPLAYED_AIRCRAFT itself - ranking
-// happens continuously during parse, so the kept set IS the shown set (the
-// old design collected an arbitrary server-order prefix, then filtered and
-// truncated by distance afterward, which is what let far-array-position
-// aircraft crowd out genuinely nearby ones).
-#define NEAREST_K MAX_DISPLAYED_AIRCRAFT
-// Not user-configurable: fetches only take 0.2-2.5s in practice, so this
-// leaves plenty of margin without hammering the SkyAware server.
-#define REFRESH_INTERVAL_SEC 3
+// cutoff); nearest_ctx_t.nearest[] holds however many of the nearest-so-far
+// cfg->max_aircraft asks for, ranked as they stream in. No slack needed
+// beyond that - ranking happens continuously during parse, so the kept set
+// IS the shown set (the old design collected an arbitrary server-order
+// prefix, then filtered and truncated by distance afterward, which is what
+// let far-array-position aircraft crowd out genuinely nearby ones).
+// Seconds between SkyAware fetches is also user-configurable at runtime
+// (radar_config_t.refresh_interval_sec, REFRESH_INTERVAL_MIN_SEC..
+// REFRESH_INTERVAL_MAX_SEC - see config_store.h) - fetches only take
+// 0.2-2.5s in practice, so REFRESH_INTERVAL_DEFAULT_SEC (3s) leaves plenty
+// of margin without hammering the SkyAware server, but someone who wants a
+// faster/slower radar can now adjust it.
 #define STA_CONNECT_TIMEOUT_MS 20000
 // If we go this many cycles in a row without a usable radar frame - whether
 // from an HTTP-level failure, a malformed/truncated feed, or a connection
@@ -95,9 +98,9 @@ typedef struct {
 
 typedef struct {
     const radar_config_t *cfg;
-    ranked_aircraft_t nearest[NEAREST_K];  // ascending by priority; nearest[0] ranks first
-    int count;                              // valid entries, <= NEAREST_K
-    int total_in_range;                     // every in-range airborne aircraft seen, uncapped
+    ranked_aircraft_t nearest[MAX_AIRCRAFT_CAP];  // ascending by priority; nearest[0] ranks first
+    int count;                                     // valid entries, <= cfg->max_aircraft
+    int total_in_range;                            // every in-range airborne aircraft seen, uncapped
 } nearest_ctx_t;
 
 // A mild per-1000ft penalty added to true distance to produce the ranking
@@ -143,8 +146,9 @@ static void on_aircraft_parsed(const aircraft_t *ac, void *user_ctx)
     }
     nctx->total_in_range++;
     double priority = ranking_priority(ac, dist_nm);
+    int max_aircraft = nctx->cfg->max_aircraft;
 
-    if (nctx->count < NEAREST_K) {
+    if (nctx->count < max_aircraft) {
         int i = nctx->count;
         while (i > 0 && nctx->nearest[i - 1].priority > priority) {
             nctx->nearest[i] = nctx->nearest[i - 1];
@@ -154,8 +158,8 @@ static void on_aircraft_parsed(const aircraft_t *ac, void *user_ctx)
         nctx->nearest[i].dist_nm = dist_nm;
         nctx->nearest[i].priority = priority;
         nctx->count++;
-    } else if (priority < nctx->nearest[NEAREST_K - 1].priority) {
-        int i = NEAREST_K - 1;
+    } else if (priority < nctx->nearest[max_aircraft - 1].priority) {
+        int i = max_aircraft - 1;
         while (i > 0 && nctx->nearest[i - 1].priority > priority) {
             nctx->nearest[i] = nctx->nearest[i - 1];
             i--;
@@ -164,7 +168,7 @@ static void on_aircraft_parsed(const aircraft_t *ac, void *user_ctx)
         nctx->nearest[i].dist_nm = dist_nm;
         nctx->nearest[i].priority = priority;
     }
-    // else: already holding NEAREST_K higher-priority aircraft - discard.
+    // else: already holding max_aircraft higher-priority aircraft - discard.
 }
 
 // Maps a raw ADS-B emitter-category code (SkyAware's "category" field, e.g.
@@ -202,7 +206,7 @@ static void on_http_chunk(const char *data, size_t len, void *user_ctx)
 // change if the live-config server (live_config_http_server.c) adjusts
 // home_lat/home_lon/range_nm - so this is recomputed every refresh cycle
 // rather than once at startup. The table is short (main/airports.c) and
-// this only runs once per REFRESH_INTERVAL_SEC, so the cost is negligible.
+// this only runs once per refresh_interval_sec, so the cost is negligible.
 // Returns the number of markers written to `out` (<= MAX_AIRPORT_MARKERS).
 static int build_airport_markers(const radar_config_t *cfg, radar_marker_t *out)
 {
@@ -224,7 +228,8 @@ static int build_airport_markers(const radar_config_t *cfg, radar_marker_t *out)
 // each iteration below refreshes its own local copy from
 // live_config_http_server.c rather than reading a single boot-time
 // snapshot - that's what lets the live-config server's edits (SkyAware
-// host/port, home lat/lon, radar range) take effect without a reboot.
+// host/port, home lat/lon, radar range, max aircraft, refresh interval)
+// take effect without a reboot.
 static void run_radar_loop(radar_config_t cfg)
 {
     // static: the scanner (~2KB) and targets array would otherwise sit on
@@ -233,7 +238,7 @@ static void run_radar_loop(radar_config_t cfg)
     // for the same class of issue) - run_radar_loop never returns and is
     // never re-entered concurrently, so static storage is safe here.
     static aircraft_model_scanner_t scanner;
-    static radar_target_t targets[NEAREST_K];
+    static radar_target_t targets[MAX_AIRCRAFT_CAP];
     static radar_marker_t markers[MAX_AIRPORT_MARKERS];
     int consecutive_failures = 0;
 
@@ -307,7 +312,7 @@ static void run_radar_loop(radar_config_t cfg)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(REFRESH_INTERVAL_SEC * 1000));
+        vTaskDelay(pdMS_TO_TICKS((int)(cfg.refresh_interval_sec * 1000)));
     }
 }
 
@@ -356,6 +361,8 @@ void app_main(void)
     // live-config support never requires holding BOOT to re-provision just
     // to pick up a new field.
     config_store_ensure_live_cfg_auth(&cfg);
+    config_store_ensure_max_aircraft(&cfg);
+    config_store_ensure_refresh_interval(&cfg);
 
     radar_view_draw_status("CONNECTING TO WIFI", NULL);
 

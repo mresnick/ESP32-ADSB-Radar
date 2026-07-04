@@ -36,10 +36,11 @@ LCD. Connect a phone/laptop to it:
    some OS versions don't reliably auto-detect it).
 2. Fill in your home WiFi SSID/password, the SkyAware host/port (e.g.
    `10.0.1.178` / `8080`), your home latitude/longitude, the radar range in
-   nautical miles (defaults to 20), and a username/password for the live
-   config page below (defaults to `adsbradar`/`adsbradar` - change these
-   if you'd rather not use the default). Refresh interval (3s) is fixed,
-   not user-configurable.
+   nautical miles (defaults to 20), the max number of aircraft to display
+   at once (1-8, defaults to 8), the refresh interval in seconds (defaults
+   to 3), and a username/password for the live config page below (defaults
+   to `adsbradar`/`adsbradar` - change these if you'd rather not use the
+   default).
 3. Submit. The device saves the config to NVS and reboots into normal
    operation, connecting to your WiFi and starting the radar display.
 
@@ -54,8 +55,9 @@ fallback isn't persisted — a future power-cycle retries the saved WiFi first).
 ## Adjusting config without reprovisioning
 
 Once the device is running normally (radar mode), the SkyAware host/port,
-home latitude/longitude, and radar range can be changed from a browser on
-your home network, without holding BOOT or dropping the radar display:
+home latitude/longitude, radar range, max displayed aircraft, and refresh
+interval can be changed from a browser on your home network, without
+holding BOOT or dropping the radar display:
 
 1. Find the device's current IP address — logged at boot (serial monitor) as
    `live config: http://<ip>/ (user=... pass=...)`, and also shown briefly

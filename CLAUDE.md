@@ -87,9 +87,10 @@ through a full `esp_restart()`.
 **Live config** (`main/live_config_http_server.c`): a second, always-on
 HTTP server that runs only in STA/radar mode, separate from
 `provisioning_http_server.c`'s AP-only one. It lets the SkyAware host/port,
-home lat/lon, and radar range be changed from a browser on the home LAN
-(`http://<device-ip>/`, gated by HTTP Basic Auth) without holding BOOT to
-re-enter AP provisioning. Two things make this safe to keep simple:
+home lat/lon, radar range, and max displayed aircraft be changed from a
+browser on the home LAN (`http://<device-ip>/`, gated by HTTP Basic Auth)
+without holding BOOT to re-enter AP provisioning. Two things make this safe
+to keep simple:
 - **WiFi credentials are not editable here at all** - only through the
   BOOT-button AP flow. A bad WiFi save applied over WiFi would strand the
   device with no way to reach it to fix it.
@@ -242,15 +243,15 @@ is the single most important thing to understand before touching
   `total_in_range - shown` to tell `radar_view_draw_radar` how many aircraft
   are being hidden, so a busy feed shows a "+N" indicator instead of quietly
   looking complete.
-- `range_nm` (like `sky_host`/`sky_port`/`home_lat`/`home_lon`) can change at
-  runtime via `live_config_http_server.c` - `run_radar_loop` re-reads all of
-  these from `live_config_get_current` at the top of every refresh cycle
-  rather than trusting a single boot-time snapshot. This is a *user-driven*
-  edit through an explicit form, not automatic/algorithmic - if automatic
-  range adjustment (e.g. based on live traffic density) is ever added, keep
-  it as its own separate value rather than overloading `cfg.range_nm`, since
-  live-config edits and that kind of automatic adjustment would otherwise
-  fight over the same field.
+- `range_nm` (like `sky_host`/`sky_port`/`home_lat`/`home_lon`/`max_aircraft`/
+  `refresh_interval_sec`) can change at runtime via `live_config_http_server.c` -
+  `run_radar_loop` re-reads all of these from `live_config_get_current` at
+  the top of every refresh cycle rather than trusting a single boot-time
+  snapshot. This is a *user-driven* edit through an explicit form, not
+  automatic/algorithmic - if automatic range adjustment (e.g. based on live
+  traffic density) is ever added, keep it as its own separate value rather
+  than overloading `cfg.range_nm`, since live-config edits and that kind of
+  automatic adjustment would otherwise fight over the same field.
 - Fetch-level failure, malformed JSON, and a connection that closes before
   the document reaches a clean end are all treated as one uniform failure
   case in `run_radar_loop`, incrementing a single `consecutive_failures`
