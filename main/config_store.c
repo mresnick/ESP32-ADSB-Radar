@@ -277,7 +277,7 @@ bool config_store_parse_label_mode(const char *str, radar_label_mode_t *out)
 {
     char *endptr;
     long v = strtol(str, &endptr, 10);
-    if (*endptr != '\0' || v < RADAR_LABEL_CALLSIGN || v > RADAR_LABEL_TAIL_NUMBER) {
+    if (*endptr != '\0' || v < RADAR_LABEL_CALLSIGN || v > RADAR_LABEL_NONE) {
         return false;
     }
     *out = (radar_label_mode_t)v;

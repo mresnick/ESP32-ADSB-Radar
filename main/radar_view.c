@@ -556,7 +556,12 @@ void radar_view_draw_radar(double range_nm, const radar_marker_t *markers, int m
 
         draw_aircraft_icon(x, y, targets[i].heading_deg, targets[i].shape,
                             altitude_color(targets[i].has_altitude, targets[i].altitude_ft));
-        draw_target_label(x, y, &targets[i]);
+        // Empty label means RADAR_LABEL_NONE (see radar_view.h) - skip
+        // entirely rather than drawing an empty text string, which would
+        // still paint draw_target_label's opaque backing rect for nothing.
+        if (targets[i].label[0] != '\0') {
+            draw_target_label(x, y, &targets[i]);
+        }
     }
 
     if (hidden_count > 0) {

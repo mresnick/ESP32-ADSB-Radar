@@ -40,6 +40,7 @@ typedef enum {
     RADAR_LABEL_CALLSIGN = 0,
     RADAR_LABEL_AIRCRAFT_TYPE = 1,
     RADAR_LABEL_TAIL_NUMBER = 2,
+    RADAR_LABEL_NONE = 3,
 } radar_label_mode_t;
 
 typedef struct {

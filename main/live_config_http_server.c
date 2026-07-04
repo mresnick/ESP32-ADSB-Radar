@@ -94,6 +94,7 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
     const char *sel_callsign = (cfg->label_mode == RADAR_LABEL_CALLSIGN) ? " selected" : "";
     const char *sel_type = (cfg->label_mode == RADAR_LABEL_AIRCRAFT_TYPE) ? " selected" : "";
     const char *sel_tail = (cfg->label_mode == RADAR_LABEL_TAIL_NUMBER) ? " selected" : "";
+    const char *sel_none = (cfg->label_mode == RADAR_LABEL_NONE) ? " selected" : "";
     // Sized with margin over the worst case: ~1KB of literal markup
     // (including the viewport meta/style block below) plus a full 64-char
     // sky_host, status_html, and the other substituted fields - see
@@ -114,7 +115,12 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
         // %% here is a literal '%' for CSS, escaped for snprintf's benefit -
         // a bare '%' would be parsed as (the start of) a conversion
         // specifier, which is undefined behavior for an unrecognized one.
-        "input{width:100%%;box-sizing:border-box;font-size:1em;padding:0.5em;margin:0.3em 0}"
+        // select is listed alongside input so the label dropdown gets the
+        // exact same width/box-sizing/font-size/padding/margin as every
+        // text/number input - without it, the dropdown renders at the
+        // browser's own default size instead of lining up with the rest of
+        // the form.
+        "input,select{width:100%%;box-sizing:border-box;font-size:1em;padding:0.5em;margin:0.3em 0}"
         "input[type=submit]{width:auto;padding:0.6em 1.5em}"
         "</style>"
         "</head><body>"
@@ -131,12 +137,13 @@ static void render_form(char *html, size_t html_cap, const radar_config_t *cfg, 
         "<option value=\"0\"%s>Callsign</option>"
         "<option value=\"1\"%s>Aircraft Type</option>"
         "<option value=\"2\"%s>Tail Number</option>"
+        "<option value=\"3\"%s>None</option>"
         "</select><br><br>"
         "<input type=\"submit\" value=\"Save\">"
         "</form></body></html>",
         status_html, cfg->sky_host, cfg->sky_port,
         cfg->home_lat, cfg->home_lon, cfg->range_nm, MAX_AIRCRAFT_CAP, cfg->max_aircraft,
-        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec, sel_callsign, sel_type, sel_tail);
+        REFRESH_INTERVAL_MIN_SEC, cfg->refresh_interval_sec, sel_callsign, sel_type, sel_tail, sel_none);
 }
 
 static esp_err_t form_get_handler(httpd_req_t *req)

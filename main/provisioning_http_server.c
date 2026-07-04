@@ -23,7 +23,10 @@ static const char FORM_HTML[] =
     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
     "<style>"
     "body{font-family:sans-serif;font-size:1.2em;margin:1em;max-width:480px}"
-    "input{width:100%;box-sizing:border-box;font-size:1em;padding:0.5em;margin:0.3em 0}"
+    // select is listed alongside input so the label dropdown gets the exact
+    // same width/box-sizing/font-size/padding/margin as every text/number
+    // input, instead of rendering at the browser's own default size.
+    "input,select{width:100%;box-sizing:border-box;font-size:1em;padding:0.5em;margin:0.3em 0}"
     "input[type=submit]{width:auto;padding:0.6em 1.5em}"
     "</style>"
     "</head><body>"
@@ -42,6 +45,7 @@ static const char FORM_HTML[] =
     "<option value=\"0\" selected>Callsign</option>"
     "<option value=\"1\">Aircraft Type</option>"
     "<option value=\"2\">Tail Number</option>"
+    "<option value=\"3\">None</option>"
     "</select><br>"
     "Live Config Username:<br><input name=\"live_user\" maxlength=\"32\" value=\"adsbradar\" required><br>"
     "Live Config Password:<br><input name=\"live_pass\" type=\"password\" maxlength=\"64\" value=\"adsbradar\" required><br><br>"

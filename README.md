@@ -39,8 +39,8 @@ LCD. Connect a phone/laptop to it:
    nautical miles (defaults to 20), the max number of aircraft to display
    at once (1-8, defaults to 8), the refresh interval in seconds (defaults
    to 3), which label to show under each aircraft (callsign, aircraft type,
-   or tail number - defaults to callsign), and a username/password for the
-   live config page below (defaults to `adsbradar`/`adsbradar` - change
+   tail number, or none - defaults to callsign), and a username/password
+   for the live config page below (defaults to `adsbradar`/`adsbradar` - change
    these if you'd rather not use the default).
 3. Submit. The device saves the config to NVS and reboots into normal
    operation, connecting to your WiFi and starting the radar display.

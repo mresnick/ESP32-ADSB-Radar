@@ -228,15 +228,17 @@ is the single most important thing to understand before touching
 - `resolve_label()` (`app_main.c`) picks what `radar_target_t.label`
   (`radar_view.h`) shows per `radar_config_t.label_mode` -
   `RADAR_LABEL_CALLSIGN` (default), `RADAR_LABEL_AIRCRAFT_TYPE` (SkyAware's
-  `"t"` field, e.g. `"B738"`), or `RADAR_LABEL_TAIL_NUMBER` (`"r"`, e.g.
-  `"N12345"`). Both `t`/`r` come from SkyAware's own aircraft database
-  lookup, not the aircraft's broadcast, so either can be blank even when
-  callsign isn't - `resolve_label()` falls back to `aircraft_t.flight`
-  (itself already guaranteed non-empty, falling back to ICAO hex - see
-  `aircraft_model.c`) whenever the requested field is blank for a given
-  aircraft, so the label is never empty regardless of mode. `radar_view.c`
-  stays entirely unaware of `label_mode` - it only ever draws whatever
-  string ends up in `radar_target_t.label`.
+  `"t"` field, e.g. `"B738"`), `RADAR_LABEL_TAIL_NUMBER` (`"r"`, e.g.
+  `"N12345"`), or `RADAR_LABEL_NONE` (no label at all). Both `t`/`r` come
+  from SkyAware's own aircraft database lookup, not the aircraft's
+  broadcast, so either can be blank even when callsign isn't -
+  `resolve_label()` falls back to `aircraft_t.flight` (itself already
+  guaranteed non-empty, falling back to ICAO hex - see `aircraft_model.c`)
+  whenever the requested field is blank for a given aircraft, so an empty
+  `label` unambiguously means `RADAR_LABEL_NONE` rather than "field
+  missing." `radar_view.c` stays entirely unaware of `label_mode` itself -
+  it just skips drawing a label at all when `label` is empty, and otherwise
+  draws whatever string is in it.
 - `app_main.c`'s `on_aircraft_parsed` callback does the ranking: it computes
   distance for every aircraft as it streams in and keeps only the top
   `NEAREST_K` (= `MAX_DISPLAYED_AIRCRAFT`, 8) seen so far, in a small
