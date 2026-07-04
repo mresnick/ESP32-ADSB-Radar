@@ -52,11 +52,11 @@ extension that isn't visible under strict `-std=c11` on glibc without extra
 feature-test macros) in favor of a locally-defined constant, precisely so it
 stays host-testable under the same `-std=c11` flags used here.
 
-There's no native Windows C compiler in this dev environment (no gcc/clang/cl
-on PATH) - use WSL (`wsl -d Ubuntu -- bash -lc "..."`) to run the commands
-above. A `test/native/CMakeLists.txt` also exists as an alternative (builds
-both `test_aircraft_model` and `test_geo_math`) but is untested here (no
-`cmake` available in the WSL distro used this session).
+A `test/native/CMakeLists.txt` also exists as an alternative that builds
+both `test_aircraft_model` and `test_geo_math`, if you'd rather not invoke
+`gcc` directly. On a machine with no native C compiler on PATH, run these
+commands under WSL or another POSIX environment instead - see
+CLAUDE.local.md for this machine's specific setup.
 
 These tests are the primary way to validate changes to the scanner's
 streaming/resumability logic (chunk-boundary handling, truncation vs.
