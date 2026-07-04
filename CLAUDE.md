@@ -111,9 +111,8 @@ re-provisioning, same as `wifi_ssid`/`wifi_pass` - `check_auth`
 `main/CMakeLists.txt`'s `REQUIRES` since this is the first code in `main/`
 to call into it directly) and compares both fields against `g_cfg`. A 401
 response carries `WWW-Authenticate: Basic realm="ESP32-ADSB-Radar"` so browsers
-prompt natively and can save/autofill the credentials - deliberately chosen
-over the query-string-token scheme this replaced, since that had to be
-copy-pasted into the URL every time rather than remembered by the browser.
+prompt natively and can save/autofill the credentials, rather than requiring
+them to be copy-pasted into the URL every time.
 There's no other authentication, on the assumption that the home LAN is a
 trusted boundary, same as the open AP `provisioning_http_server.c` already
 assumes. A config saved before these fields existed has them blank;
@@ -122,9 +121,8 @@ assumes. A config saved before these fields existed has them blank;
 persist it on first boot after an upgrade, specifically so adding
 live-config support (or upgrading from an older field set) never itself
 requires a BOOT-button reprovision - note this only fills in whichever
-field is actually blank, so an already-random-generated password from an
-earlier version of this feature is left alone, not silently downgraded to
-the default. `main/http_post_utils.c` holds the POST-body-read and
+field is actually blank, so a previously-set custom password is not
+overwritten with the default. `main/http_post_utils.c` holds the POST-body-read and
 x-www-form-urlencoded-parsing helpers shared between this and
 `provisioning_http_server.c` (plus `http_send_error`, a trivial shared
 400-response helper), and `config_store.c` holds `config_store_parse_port`/
@@ -137,16 +135,12 @@ into one module (see TASKS.md item on this if it comes up again) - the
 distinction is that parsing/validating a string into a number has no
 security or persistence semantics attached to it, unlike auth or how a
 save gets applied, which is where the two servers' behavior needs to stay
-visibly different rather than unified behind a mode flag. Consolidating
-this validation also fixed two real latent bugs: `config_store_load`
-previously didn't enforce `home_lat`/`home_lon`'s range at all, or
-`range_nm`'s upper bound, the way both HTTP handlers already did (so a
-value could only ever get into NVS with a bad load-time consequence
-mismatch, not that one currently could - but the drift was there); and
-`config_store_parse_port` checks the parsed value against `UINT16_MAX`
-*before* narrowing it to `uint16_t`, whereas the original code cast first -
-casting an out-of-range value like `"65537"` to `uint16_t` first silently
-wraps it to `1`, which then passes an `== 0` check and gets accepted as a
+visibly different rather than unified behind a mode flag. `config_store_load`
+enforces the same `home_lat`/`home_lon` range and `range_nm` upper bound as
+both HTTP handlers. `config_store_parse_port` checks the parsed value
+against `UINT16_MAX` *before* narrowing it to `uint16_t` - casting an
+out-of-range value like `"65537"` to `uint16_t` first would silently wrap
+it to `1`, which would then pass an `== 0` check and get accepted as a
 valid-looking port.
 
 `save_post_handler` re-renders the full config form (via a shared
@@ -164,18 +158,17 @@ them or how late they're actually written to. If `save_post_handler` or
 than assuming a build success proves it's still large enough - this class
 of bug is invisible at compile time.
 
-(A "Use My Location" button backed by `navigator.geolocation` was tried on
-both forms and then removed - browsers only expose Geolocation on a
-"secure context" (HTTPS or `localhost`), and neither server serves HTTPS,
-so it was dead weight for virtually everyone. See TASKS.md for why HTTPS
-itself wasn't pursued; lat/lon entry is manual-only for now.)
+Lat/lon entry is manual-only: browsers only expose `navigator.geolocation`
+on a "secure context" (HTTPS or `localhost`), and neither server serves
+HTTPS, so a "Use My Location" button isn't viable here. See TASKS.md for
+why HTTPS itself wasn't pursued.
 
 Both forms' `<head>` also carries a `viewport` meta tag and a small inline
 `<style>` block (larger touch-friendly `input`s, a readable base font size,
 `max-width` so it doesn't stretch edge-to-edge on a tablet/desktop) - without
 the viewport tag specifically, mobile browsers render at a desktop-width
-virtual viewport and shrink the whole page to fit, which is what forced
-pinch-zooming before this was added. `live_config_http_server.c`'s copy
+virtual viewport and shrink the whole page to fit, forcing pinch-zooming
+to read or fill in the form. `live_config_http_server.c`'s copy
 lives inside `render_form`'s `snprintf` call, which matters for one
 non-obvious reason: a literal `%` in the CSS (`width:100%`) has to be
 written as `%%` there, since `snprintf` would otherwise try to parse it as
@@ -253,12 +246,11 @@ is the single most important thing to understand before touching
   runtime via `live_config_http_server.c` - `run_radar_loop` re-reads all of
   these from `live_config_get_current` at the top of every refresh cycle
   rather than trusting a single boot-time snapshot. This is a *user-driven*
-  edit through an explicit form, not automatic/algorithmic - an earlier,
-  unrelated experiment auto-stepped `range_nm` through a preset ladder based
-  on live traffic density and was deliberately reverted; if that idea
-  resurfaces, keep it as its own separate value rather than overloading
-  `cfg.range_nm`, since live-config edits and that kind of automatic
-  adjustment would otherwise fight over the same field.
+  edit through an explicit form, not automatic/algorithmic - if automatic
+  range adjustment (e.g. based on live traffic density) is ever added, keep
+  it as its own separate value rather than overloading `cfg.range_nm`, since
+  live-config edits and that kind of automatic adjustment would otherwise
+  fight over the same field.
 - Fetch-level failure, malformed JSON, and a connection that closes before
   the document reaches a clean end are all treated as one uniform failure
   case in `run_radar_loop`, incrementing a single `consecutive_failures`
@@ -271,13 +263,11 @@ is the single most important thing to understand before touching
   `home_lat`/`home_lon`/`range_nm` can change at runtime via live-config)
   and drawn as `radar_marker_t` points distinct from aircraft
   `radar_target_t`s - `draw_marker_dot` (`radar_view.c`) is a
-  small solid circle, no label and no heading/plane icon. An earlier version
-  drew a hollow square plus an IATA-code text label, but the label was in
-  the flight path and constantly got covered by aircraft labels passing
-  over it, so it was dropped entirely rather than repositioned -
-  `radar_marker_t` no longer even carries a label field.
-- Range rings are drawn at 25/50/75/100% of the configured `range_nm` (not a
-  fixed `{5,10,15,20}` nm ladder, which only ever matched a 20nm config) so
+  small solid circle, no label and no heading/plane icon.
+  `radar_marker_t` intentionally carries no label field: a code/name label
+  would sit in the flight path and get covered by aircraft labels passing
+  over it.
+- Range rings are drawn at 25/50/75/100% of the configured `range_nm` so
   they stay evenly spaced regardless of what range is configured. Only the
   50% ring gets a distance label (`draw_ring_label` in `radar_view.c`,
   called once with `RING_FRACTIONS[1]`) - rings are evenly spaced by
@@ -285,11 +275,9 @@ is the single most important thing to understand before touching
   labeling all of them was visually crowded. The label sits just *outside*
   the ring along the positive-x (east) axis.
 
-`TROUBLESHOOTING.md` has the full history/reasoning behind this design
-(replacing an original cJSON DOM parser, then a buffer-then-parse
-intermediate design, with the current fully incremental scanner) - read it
-before changing the parsing/fetch path, since several non-obvious constraints
-(no PSRAM, per-record vs. whole-document buffering) are easy to
+`TROUBLESHOOTING.md` documents the full reasoning behind this design - read
+it before changing the parsing/fetch path, since several non-obvious
+constraints (no PSRAM, per-record vs. whole-document buffering) are easy to
 accidentally undo.
 
 **Display driver stack** (`main/Config/`, `main/LCD/`, `main/GUI/`,
@@ -307,8 +295,7 @@ single coordinate falls outside the canvas, rather than clipping it -
 unlike `Paint_SetPixel`, which is safely per-pixel-bounded. Anything in
 `radar_view.c` that computes a rectangle/line origin from a target's raw
 projected screen position (`draw_target_label` is the current one -
-`draw_marker_dot` doesn't draw a rect/label anymore, so it doesn't need
-this) has to clamp that origin to stay fully on-canvas itself; trusting the
-projection alone let labels vanish outright for targets near the edge of
-the round display (see `draw_target_label`'s clamp comment for the concrete
-bug this caused).
+`draw_marker_dot` has no rect/label to draw, so it doesn't need this) has
+to clamp that origin to stay fully on-canvas itself; trusting the
+projection alone lets labels vanish outright for targets near the edge of
+the round display (see `draw_target_label`'s clamp comment).
