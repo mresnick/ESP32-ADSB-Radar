@@ -87,6 +87,14 @@ idf.py -p <PORT> flash monitor
 
 Requires ESP-IDF v5.x (uses `esp_http_client`, `esp_http_server`, `nvs_flash`).
 
+### Flashing from the browser
+
+No ESP-IDF install needed: [flash from your browser](https://mresnick.github.io/ESP32-ADSB-Radar/)
+over USB using [ESP Web Tools](https://esphome.github.io/esp-web-tools/) (Chrome
+or Edge on desktop only - Web Serial isn't supported in Firefox/Safari). The
+firmware there is built and published automatically by
+`.github/workflows/deploy-web-installer.yml` on every push to `master`.
+
 ## Project layout
 
 ```

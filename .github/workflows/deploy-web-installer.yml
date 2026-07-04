@@ -1,0 +1,59 @@
+name: Build firmware and deploy web installer
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "main/**"
+      - "CMakeLists.txt"
+      - "sdkconfig.defaults"
+      - "web/**"
+      - ".github/workflows/deploy-web-installer.yml"
+      - ".github/scripts/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.1
+          target: esp32
+
+      - name: Generate manifest and stage site
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p site
+          cp web/index.html site/
+          python3 .github/scripts/generate_manifest.py
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

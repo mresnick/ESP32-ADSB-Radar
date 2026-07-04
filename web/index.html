@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32-ADSB-Radar - Web Installer</title>
+<script
+  type="module"
+  src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
+></script>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 640px;
+    margin: 3rem auto;
+    padding: 0 1rem;
+    line-height: 1.5;
+  }
+  esp-web-install-button {
+    display: block;
+    margin: 1.5rem 0;
+  }
+  esp-web-install-button button {
+    font-size: 1rem;
+    padding: 0.6rem 1.2rem;
+  }
+</style>
+</head>
+<body>
+<h1>ESP32-ADSB-Radar</h1>
+<p>
+  Flash the latest firmware directly from your browser over USB. Requires
+  <strong>Chrome or Edge on desktop</strong> - Web Serial isn't supported in
+  Firefox or Safari. Connect the ESP32 board via USB before clicking below.
+</p>
+<esp-web-install-button manifest="manifest.json">
+  <button slot="activate">Connect &amp; Flash</button>
+  <span slot="unsupported">
+    Your browser doesn't support Web Serial. Use Chrome or Edge on desktop.
+  </span>
+  <span slot="not-allowed">
+    This page must be served over HTTPS to flash a device.
+  </span>
+</esp-web-install-button>
+<p>
+  After flashing, the device boots into provisioning mode - see the
+  <a href="https://github.com/mresnick/ESP32-ADSB-Radar#first-time-setup-provisioning">README</a>
+  for WiFi/SkyAware setup.
+</p>
+</body>
+</html>
